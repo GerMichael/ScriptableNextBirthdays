@@ -2,9 +2,9 @@
  * Author: Michael Gerischer
  * GitHub: https://github.com/GerMichael/ScriptableNextBirththdays
  */
-const version = "1.0.0";
+const version = "1.0.1";
 
-// === User Settings – Edit here ===
+// === User Settings – Edit here ===
 
 // the hsv offset to compute the gradient. if the offset exceeds the limit, the value will be clamped, so no worries!
 //   1. index: 0-360: the angle (red to yellow to green to … to red)
@@ -78,12 +78,10 @@ const settings = {
 // Tooling
 const TODAY = new Date();
 
-let fm;
+let fm = FileManager.local();
 
-try{
+if(fm.isFileStoredIniCloud(module.filename)){
   fm = FileManager.iCloud();
-} catch(e){
-  fm = FileManager.local();
 }
 
 
