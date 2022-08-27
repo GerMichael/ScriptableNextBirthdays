@@ -2,7 +2,7 @@
  * Author: Michael Gerischer
  * GitHub: https://github.com/GerMichael/ScriptableNextBirththdays
  */
-const version = "1.0.1";
+const version = "1.0.2";
 
 // === User Settings – Edit here ===
 
@@ -41,7 +41,7 @@ const settings = {
   // Text size of title: number
   titleSize: {
     small: 12,
-    medium: 21,
+    medium: 18,
     default: 26,
   },
   // spacing between text columns
@@ -58,7 +58,7 @@ const settings = {
   // Number of displayed contacts for widget sizes
   numberOfContactsForWidgetSize: {
     small: 6,
-    medium: 4,
+    medium: 5,
     default: 8,
   },
   // left, right, top, bottom padding of widget: number
