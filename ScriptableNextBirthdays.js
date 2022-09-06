@@ -2,7 +2,7 @@
  * Author: Michael Gerischer
  * GitHub: https://github.com/GerMichael/ScriptableNextBirththdays
  */
-const version = "1.0.2";
+const version = "1.0.3";
 
 // === User Settings – Edit here ===
 
@@ -17,10 +17,10 @@ const settings = {
   title: "🎁 Next Birthdays 🎁",
   // alignment of title: "center", "right", "left"
   titleAlignment: "center",
-  // the background: gradient(colorString) or monochrome(colorString)
-  // The colorString can be either "black", "white" or a variation of "yellow", "orange", "red", "pink", "purple", "blue", "green" and "gray"
-  // The variations are "light-[color]", "[color]" and "dark-[color]"
-  colorTheme: gradient("dark-blue"),
+  // the theme name defining the color values
+  themeName: "main",
+  // The actual color name picked from the selected theme
+  backgroundColor: "blue",
   // font family
   textFontFamilies: {
     regular: "Helvetica",
@@ -373,6 +373,7 @@ async function composeWidget(widget, contacts, settings) {
   // Padding is handled by text renderer
   widget.setPadding(...padding);
   
+  widget.backgroundColor = getColorValue(settings.themeName, settings.colorName);
   if(settings.colorTheme.type === "gradient"){
     widget.backgroundGradient = settings.colorTheme.gradient;
   } else if(settings.colorTheme.type === "monochrome"){
@@ -546,173 +547,31 @@ Thanks! 🙏`);
 
 
 // Coloring
-
-function clamp(value, min, max){
-  return Math.min(Math.max(value, min), max);
+function getColor(themeName, colorName) {
+  const theme = getTheme(themeName);
+  const colorValue = getColorValue(theme, colorName);
+  return colorValue;
 }
 
-// algorithm copied from https://en.m.wikipedia.org/wiki/HSL_and_HSV
-function hsvToRgb(h,s,v){
-  // chroma
-  const c = v * s;
-  const h1 = h / 60;
-  const x = c * (1 - Math.abs(h1 % 2 - 1));
-  const m = v - c;
-  const [r1,g1,b1] = h1 < 1 ? [c,x,0] : 
-                     h1 < 2 ? [x,c,0] :
-                     h1 < 3 ? [0,c,x] :
-                     h1 < 4 ? [0,x,c] :
-                     h1 < 5 ? [x,0,c] :
-                              [c,0,x];
-
-  return [(r1+m)*255, (g1+m)*255, (b1+m)*255]
+function getColorValue(theme, colorName){
+  return theme != null && colorName in theme ? theme[colorName] : "#F44336";
 }
 
-function rgbToHex(r1, g1, b1){
-  const [r,g,b] = [r1, g1, b1].map(Math.round);
-  const rr = r.toString(16).padStart(2, 0);
-  const gg = g.toString(16).padStart(2, 0);
-  const bb = b.toString(16).padStart(2, 0);
+function getTheme(themeName) {
+  const themes = {
+    main: {
+      yellow: "#FFF000",
+      orange: "#FFA000",
+      red: "#FF0000",
+      pink: "#FFC0CB",
+      purple: "#FF00FF",
+      blue: "#0000FF",
+      green: "#00FF00",
+      black: "#000000",
+      white: "#FFFFFF",
+      gray: "#808080",
+    },
+  };
 
-  return `#${rr}${gg}${bb}`;
-}
-
-function getTextColors(){
-  const whiteTextColor = new Color("#FFF");
-  const blackTextColor = new Color("#000");
-  return { whiteTextColor, blackTextColor };
-}
-
-function gradient(colorString, bottomColorOffset = hsvGradientOffset){
-  const gradient = new LinearGradient();
-  gradient.locations = [.4,1];
-  
-  const {color: hsvBody, textColor} = getBaseHsvAndTextColor(colorString);
-
-  const bottomHsvAngle = (hsvBody[0] + bottomColorOffset[0]) % 360;
-  const hsvBottom = [
-    bottomHsvAngle < 0 ? 360 + bottomHsvAngle : bottomHsvAngle,
-    clamp(hsvBody[1] + bottomColorOffset[1], 0,1),
-    clamp(hsvBody[2] + bottomColorOffset[2], 0,1)
-  ];
-  
-  const rgbBody = hsvToRgb(...hsvBody);
-  const hexBody = rgbToHex(...rgbBody);
-  const colorBody = new Color(hexBody);
-  const rgbBottom = hsvToRgb(...hsvBottom);
-  const hexBottom = rgbToHex(...rgbBottom);
-  const colorBottom = new Color(hexBottom);
-  
-  gradient.colors = [colorBody, colorBottom];
-  return {type: "gradient", gradient, textColor};
-}
-
-function monochrome(colorString) {
-  const {color, textColor} = getBaseHsvAndTextColor(colorString)
-  
-  const rgb = hsvToRgb(...color);
-  const hex = rgbToHex(...rgb);
-  
-  return {type: "monochrome", color: new Color(hex), textColor}
-}
-
-function getBaseHsvAndTextColor(colorString){
-  const { whiteTextColor, blackTextColor } = getTextColors();
-  let textColor = whiteTextColor;
-  let color;
-  
-  switch(colorString){
-    case "light-yellow":
-      color = [52,.8,1];
-      textColor = blackTextColor;
-      break;
-    case "yellow": 
-      color = [48,.85,1];
-      textColor = blackTextColor;
-      break;
-    case "dark-yellow":
-      color = [42,1,.94];
-      textColor = blackTextColor;
-      break;
-    case "light-orange":
-      color = [40,.80,1];
-      textColor = blackTextColor;
-      break;
-    case "orange":
-      color = [33,.80,1];
-      textColor = blackTextColor;
-      break;
-    case "dark-orange":
-      color = [20,.96,.74];
-      break;
-    case "light-red":
-      color = [8,.72,1];
-      textColor = blackTextColor;
-      break;
-    case "red":
-      color = [4,.78,.91];
-      break;
-    case "dark-red": 
-      color = [0,1,.53];
-      break;
-    case "light-pink":
-      color = [320,.33,1];
-      textColor = blackTextColor;
-      break;
-    case "pink":
-      color = [320,.66,1];
-      break;
-    case "dark-pink":
-      color = [320,.96,.69];
-      break;
-    case "light-purple": 
-      color = [281,.37,1];
-      textColor = blackTextColor;
-      break;
-    case "purple":
-      color = [281,.72,.81];
-      break;
-    case "dark-purple":
-      color = [281,.68,.44];
-      break;
-    case "light-blue":
-      color = [191,1,.86];
-      break;
-    case "blue":
-      color = [210,.73,.8];
-      break;
-    case "dark-blue":
-      color = [212,.68,.31];
-      break;
-    case "light-green":
-      color = [96,.68,.89];
-      textColor = blackTextColor;
-      break;
-    case "green":
-      color = [107,.67,.6];
-      break;
-    case "dark-green":
-      color = [136,.96,.31];
-      break;
-    case "light-gray":
-      color = [0,0,.76];
-      textColor = blackTextColor;
-      break;
-    case "gray":
-      color = [224,.06,.40];
-      break;
-    case "dark-gray":
-      color = [224,.12,.3];
-      break;
-    case "black":
-      color = [0,0,.15];
-      break;
-    case "white":
-      color = [0,0,1];
-      textColor = blackTextColor;
-      break;
-    default:
-      color = [4,.78,.96];
-  }
-  return {type: "hsv", color, textColor};
+  return themeName in themes ? themes[themeName] : themes.main;
 }

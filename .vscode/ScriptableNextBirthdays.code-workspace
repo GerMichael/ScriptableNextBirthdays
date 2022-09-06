@@ -5,5 +5,13 @@
 		}
 	],
 	"settings": {
+		"json.schemas": [
+			{
+				"fileMatch": [
+					"themes/themes.json"
+				],
+				"url": "./themes/themes.schema.json"
+			}
+		]
 	}
 }
