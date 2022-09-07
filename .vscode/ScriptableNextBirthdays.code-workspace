@@ -8,9 +8,9 @@
 		"json.schemas": [
 			{
 				"fileMatch": [
-					"themes/themes.json"
+					"palettes/palettes.json"
 				],
-				"url": "./themes/themes.schema.json"
+				"url": "./palettes/palettes.schema.json"
 			}
 		]
 	}

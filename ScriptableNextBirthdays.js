@@ -3,7 +3,6 @@
  * GitHub: https://github.com/GerMichael/ScriptableNextBirththdays
  */
 const version = "1.0.3";
-
 // === User Settings – Edit here ===
 
 // the hsv offset to compute the gradient. if the offset exceeds the limit, the value will be clamped, so no worries!
@@ -17,9 +16,9 @@ const settings = {
   title: "🎁 Next Birthdays 🎁",
   // alignment of title: "center", "right", "left"
   titleAlignment: "center",
-  // the theme name defining the color values
-  themeName: "main",
-  // The actual color name picked from the selected theme
+  // the palette name defining the color values
+  paletteName: "noble",
+  // The actual color name picked from the selected palette
   backgroundColor: "blue",
   // font family
   textFontFamilies: {
@@ -227,7 +226,9 @@ log(`Running script version ${version}`);
   const widget = new ListWidget();
   setupErrorWidget(widget, e);
   displayAndHandleWidget(widget);
-  // throw e;
+  if(config.runsInApp){
+    throw e;
+  }
 } finally {
   Script.complete();
 }
@@ -373,16 +374,13 @@ async function composeWidget(widget, contacts, settings) {
   // Padding is handled by text renderer
   widget.setPadding(...padding);
   
-  widget.backgroundColor = getColorValue(settings.themeName, settings.colorName);
-  if(settings.colorTheme.type === "gradient"){
-    widget.backgroundGradient = settings.colorTheme.gradient;
-  } else if(settings.colorTheme.type === "monochrome"){
-    widget.backgroundColor = settings.colorTheme.color;
-  }
+  const bgColor = getColor(settings.paletteName, settings.backgroundColor);
+  widget.backgroundColor = bgColor;
   
-  renderTitle(widget, titleSize, settings.title);
+  const textColor = isDark(bgColor.hex) ? Color.white() : Color.black();
+  renderTitle(widget, titleSize, settings.title, textColor);
   
-  await renderNextBirthdays(contacts, widget, canvasSize, titleSpacing, textSize, textSpacing, settings);
+  await renderNextBirthdays(contacts, widget, canvasSize, titleSpacing, textSize, textSpacing, textColor);
   
   return widget;
 }
@@ -408,11 +406,11 @@ function displayAndHandleWidget(widget){
   widget.presentLarge();
 }
 
-function renderTitle(widget, titleSize, title){
+function renderTitle(widget, titleSize, title, titleColor){
   const titleElement = widget.addText(title);
   
   titleElement.font = new Font(settings.textFontFamilies.regular, titleSize);
-  titleElement.textColor = settings.colorTheme.textColor;
+  titleElement.textColor = titleColor;
   switch(settings.titleAlignment){
     case "right": 
       titleElement.rightAlignText(); break;
@@ -453,12 +451,12 @@ function normalizeCanvasSize(canvasSize, paddingTop, paddingX, verticalSpacing, 
   }
 }
 
-async function renderNextBirthdays(contacts, widget, canvasSize, titleSpacing, textSize, textSpacing) {
+async function renderNextBirthdays(contacts, widget, canvasSize, titleSpacing, textSize, textSpacing, textColor) {
   const canvas = new DrawContext();
   canvas.respectScreenScale = true;
   canvas.opaque = false;
   canvas.size = new Size(canvasSize.x, canvasSize.y);
-canvas.setTextColor(settings.colorTheme.textColor);
+  canvas.setTextColor(textColor);
 
   const dayUnit = getValueForWidgetType(settings.dayUnit, "d")
   const untilDates = contacts.map(c => {
@@ -547,31 +545,72 @@ Thanks! 🙏`);
 
 
 // Coloring
-function getColor(themeName, colorName) {
-  const theme = getTheme(themeName);
-  const colorValue = getColorValue(theme, colorName);
-  return colorValue;
+// copied from https://24ways.org/2010/calculating-color-contrast
+function isDark(hexcolor){
+  const r = parseInt(hexcolor.substring(0,2),16);
+  const g = parseInt(hexcolor.substring(2,4),16);
+  const b = parseInt(hexcolor.substring(4,6),16);
+  const yiq = ((r*299)+(g*587)+(b*114))/1000;
+  return yiq < 128;
 }
 
-function getColorValue(theme, colorName){
-  return theme != null && colorName in theme ? theme[colorName] : "#F44336";
+function getColor(paletteName, colorName) {
+  const palette = getPalette(paletteName);
+  const colorValue = getColorValue(palette, colorName);
+  return new Color(colorValue);
 }
 
-function getTheme(themeName) {
-  const themes = {
-    main: {
-      yellow: "#FFF000",
-      orange: "#FFA000",
-      red: "#FF0000",
-      pink: "#FFC0CB",
-      purple: "#FF00FF",
-      blue: "#0000FF",
-      green: "#00FF00",
-      black: "#000000",
-      white: "#FFFFFF",
-      gray: "#808080",
+function getColorValue(palette, colorName){
+  return palette != null && colorName in palette ? palette[colorName] : "#F44336";
+}
+
+function getPalette(paletteName) {
+  const palettes = {
+      "main": {
+        "yellow": "#FFD462",
+        "orange": "#FF8B34",
+        "red": "#D21034",
+        "pink": "#FDBBE1",
+        "purple": "#C019FF",
+        "blue": "#4163B1",
+        "green": "#006233",
+        "black": "#000000",
+        "white": "#FFFFFF",
+        "gray": "#AAAAAA"
     },
+    "noble": {
+        "yellow": "#ffb703",
+        "orange": "#fb8500",
+        "red": "#d62828",
+        "pink": "#ffc8dd",
+        "purple": "#ff006e",
+        "blue": "#023047",
+        "green": "#006d77",
+        "black": "#000814",
+        "white": "#edf2f4",
+        "gray": "#8d99ae"
+    },
+    "dark": {
+        "red": "#660606",
+        "pink": "#966289",
+        "purple": "#62106A",
+        "blue": "#1A174D",
+        "green": "#0C3220",
+        "black": "#000000",
+        "gray": "#383838"
+    },
+    "smooth": {
+        "yellow": "#FDFF47",
+        "orange": "#FFAF54",
+        "red": "#FF7878",
+        "pink": "#EAABF3",
+        "purple": "#E279AE",
+        "blue": "#89A1FF",
+        "green": "#7ED6A8",
+        "white": "#FFFFFF",
+        "gray": "#D5DFDB"
+    }
   };
 
-  return themeName in themes ? themes[themeName] : themes.main;
+  return paletteName in palettes ? palettes[paletteName] : palettes.main;
 }

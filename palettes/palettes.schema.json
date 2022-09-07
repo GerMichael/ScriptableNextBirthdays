@@ -1,0 +1,16 @@
+{
+  "type": "object",
+  "description": "An object mapping the theme name to the theme object.",
+  "patternProperties": {
+    ".*": {
+      "type": "object",
+      "description": "The theme object mapping the color name to the actual color value.",
+      "patternProperties": {
+        ".*": {
+          "type": "string",
+          "pattern": "^#[0-9A-Fa-f]{6}$"
+        }
+      }
+    }
+  }
+}
