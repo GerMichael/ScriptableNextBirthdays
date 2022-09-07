@@ -614,3 +614,24 @@ function getPalette(paletteName) {
 
   return paletteName in palettes ? palettes[paletteName] : palettes.main;
 }
+
+
+
+
+
+
+
+// Script Updating
+function getScriptPath(){
+  return fm.joinPath(workingDir, Script.name());
+}
+function getScript(){
+  const scriptPath = getScriptPath();
+  return fm.readString(scriptPath + ".js");
+}
+
+function updateScript(newScript){
+  const scriptPath = getScriptPath();
+  fm.writeString(scriptPath, newScript);
+  importModule(scriptPath);
+}
