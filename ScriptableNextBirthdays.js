@@ -724,7 +724,7 @@ function updateScript(newScript){
 
 
 // User Actions
-async function handleUserActions(settings){
+async function handleUserActions(widget, settings){
   const alert = new Alert();
   alert.addAction("🎨 Choose Background Color");
   alert.addAction("🧑‍🎨 Set Custom Background Color");
@@ -768,7 +768,7 @@ log(`Running script version ${version}`);
   log(`Widget update took ${end - start}ms.`)
   
   if(config.runsInApp){
-    await handleUserActions(settings);
+    await handleUserActions(widget, settings);
   }
   
 } catch(e){
