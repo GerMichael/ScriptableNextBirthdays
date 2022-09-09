@@ -2,24 +2,33 @@
  * Author: Michael Gerischer
  * GitHub: https://github.com/GerMichael/ScriptableNextBirththdays
  */
-const version = "1.0.3";
-// === User Settings – Edit here ===
+const version = "1.1.0";
 
-// the hsv offset to compute the gradient. if the offset exceeds the limit, the value will be clamped, so no worries!
-//   1. index: 0-360: the angle (red to yellow to green to … to red)
-//   2. index: 0-1: saturation (e.g. white (0) to red (1))
-//   3. index: 0-1: (blackish) value (e.g. black (0) to red (1))
-const hsvGradientOffset = [-5,0,-.15];
+// === Script controlled variables ===
+// === DO NOT ALTER VARIABLE NAMES ===
+
+const backgroundColor = "#1D3557";
+const widgetTitle = "🎁 Next Birthdays 🎁";
+
+// ===================================
+
+
+
+
+
+
+
+// === Script Settings – Be careful! ===
 
 const settings = {
   // title text: string
-  title: "🎁 Next Birthdays 🎁",
+  title: widgetTitle,
   // alignment of title: "center", "right", "left"
   titleAlignment: "center",
   // the palette name defining the color values
   paletteName: "noble",
   // The actual color name picked from the selected palette
-  backgroundColor: "blue",
+  backgroundColor,
   // font family
   textFontFamilies: {
     regular: "Helvetica",
@@ -67,8 +76,8 @@ const settings = {
     default: 10,
   },
 }
-// == Do Not Edit Anything Below ==
 
+// == End of script settings ==
 
 
 
@@ -76,13 +85,6 @@ const settings = {
 
 // Tooling
 const TODAY = new Date();
-
-let fm = FileManager.local();
-
-if(fm.isFileStoredIniCloud(module.filename)){
-  fm = FileManager.iCloud();
-}
-
 
 function l0(num, places = 2){
   return String(num).padStart(places, '0')
@@ -104,72 +106,6 @@ function setNextExecution(widget) {
   widget.refreshAfterDate = tomorrow;
 }
 
-class TextLength {
-
-  static getTextWidth = `
-  function getTextWidth(text, font) {
-    // re-use canvas object for better performance
-    const canvas = getTextWidth.canvas || (getTextWidth.canvas = document.createElement("canvas"));
-    const context = canvas.getContext("2d");
-    context.font = font;
-    if(Array.isArray(text)){
-      return text.map(t => context.measureText(t).width);
-    }
-    return context.measureText(text).width;
-  }
- `;
-
-  static getMaxTextWidth = `
-  function getTextWithMaxWidth(maxWidth, overflowChar, text, font){
-    if(getTextWidth(text, font) < maxWidth){
-      return text;
-    }
-    let trimmedText = "";
-    for(let i = 0; i < text.length; i++){
-      const newTrimmedText = trimmedText + text.charAt(i);
-      if (getTextWidth(newTrimmedText + overflowChar, font) < maxWidth){
-        trimmedText = newTrimmedText;
-      } else {
-        return trimmedText.trim() + overflowChar;
-      }
-    }
-  }
-`;
-
-  constructor() {
-    this.webView = new WebView();
-    this.webView.loadHTML("<html></html>");
-  }
-  
-  async computeLength(text, fontSize, fontFamily = "Helvetica", fontWeight = ""){
-    const font = `"${fontWeight} ${fontSize}px ${fontFamily}"`;
-    const inputText = Array.isArray(text) ? `['${text.join("','")}']` : `'${text}'`;
-    return await this.webView.evaluateJavaScript(`
-      ${TextLength.getTextWidth}
-
-      getTextWidth(${inputText}, ${font});
-`, false);
-  }
-  
-  async getTextWithMaxLength(maxLength, overflowChar, text, fontSize, fontFamily = "Helvetica", fontWeight = ""){
-    const font = `"${fontWeight} ${fontSize}px ${fontFamily}"`;
-    const inputText = Array.isArray(text) ? `['${text.join("','")}']` : `'${text}'`;
-    return await this.webView.evaluateJavaScript(`
-      ${TextLength.getTextWidth}
-      
-      ${TextLength.getMaxTextWidth}
-      
-      if(Array.isArray(${inputText})){
-        ${inputText}.map(t => getTextWithMaxWidth(${maxLength}, '${overflowChar}', t, ${font}));
-      } else {
-        getTextWithMaxWidth(${maxLength}, '${overflowChar}', ${inputText}, ${font});
-      }
-`, false);
-  }
-}
-
-const textLength = new TextLength();
-const lightDotsLength = await textLength.computeLength(settings.textOverflowChar, settings.textSize, settings.textFontFamilies.thin)
 
 function getValueForWidgetType(obj, defaultValue) {
   if(config.widgetFamily in obj){
@@ -181,6 +117,12 @@ function getValueForWidgetType(obj, defaultValue) {
   }
 }
 
+
+
+
+
+
+// File Handling
 class NoCacheFileError extends Error {
   constructor(path){
     super(`The cache file ${path} does not exist!`);
@@ -188,50 +130,16 @@ class NoCacheFileError extends Error {
   }
 }
 
+let fm = FileManager.local();
 
+if(fm.isFileStoredIniCloud(module.filename)){
+  fm = FileManager.iCloud();
+}
 
-
-// Script Settings
 const workingDir = fm.documentsDirectory();
 const contactsCacheFileName = "__nextBirthdays.cache";
 const contactsCacheFile = fm.joinPath(workingDir, contactsCacheFileName);
 
-
-
-
-// Main
-try{
-log(`Running script version ${version}`);
-  const start = new Date();
-  
-  const widget = new ListWidget();
-  const recomputeBirthdays = !config.runsInWidget;
-  
-  const allData = recomputeBirthdays ? await updateAndGetCache(fm) : loadCache(fm);
-  
-  let nextContacts;
-  nextContacts = computeNextBirthdays(allData, settings);
-  
-  nextContacts = nextContactsAndRelativeDates(nextContacts);
-  
-  await composeWidget(widget, nextContacts, settings);
-  
-  displayAndHandleWidget(widget);
-  setNextExecution(widget);
-  
-  const end = new Date()
-  log(`Script took ${end - start}ms.`)
-} catch(e){
-  console.error(e);
-  const widget = new ListWidget();
-  setupErrorWidget(widget, e);
-  displayAndHandleWidget(widget);
-  if(config.runsInApp){
-    throw e;
-  }
-} finally {
-  Script.complete();
-}
 
 
 
@@ -242,7 +150,6 @@ async function updateAndGetCache(fm) {
   const allData = await computeBirthdays();
       
   fm.writeString(contactsCacheFile, JSON.stringify(allData));
-  log(`Updated cache successfully: ${contactsCacheFile}`);
   
   return allData;
 }
@@ -366,7 +273,89 @@ function computeYearsDiff(today, date){
 
 
 
-// UI Handling
+// Widget Composition
+class TextLength {
+
+  static getTextWidth = `
+  function getTextWidth(text, font) {
+    // re-use canvas object for better performance
+    const canvas = getTextWidth.canvas || (getTextWidth.canvas = document.createElement("canvas"));
+    const context = canvas.getContext("2d");
+    context.font = font;
+    if(Array.isArray(text)){
+      return text.map(t => context.measureText(t).width);
+    }
+    return context.measureText(text).width;
+  }
+ `;
+
+  static getMaxTextWidth = `
+  function getTextWithMaxWidth(maxWidth, overflowChar, text, font){
+    if(getTextWidth(text, font) < maxWidth){
+      return text;
+    }
+    let trimmedText = "";
+    for(let i = 0; i < text.length; i++){
+      const newTrimmedText = trimmedText + text.charAt(i);
+      if (getTextWidth(newTrimmedText + overflowChar, font) < maxWidth){
+        trimmedText = newTrimmedText;
+      } else {
+        return trimmedText.trim() + overflowChar;
+      }
+    }
+  }
+`;
+
+  constructor() {
+    this.webView = new WebView();
+    this.webView.loadHTML("<html></html>");
+  }
+  
+  async computeLength(text, fontSize, fontFamily = "Helvetica", fontWeight = ""){
+    const font = `"${fontWeight} ${fontSize}px ${fontFamily}"`;
+    const inputText = Array.isArray(text) ? `['${text.join("','")}']` : `'${text}'`;
+    return await this.webView.evaluateJavaScript(`
+      ${TextLength.getTextWidth}
+
+      getTextWidth(${inputText}, ${font});
+`, false);
+  }
+  
+  async getTextWithMaxLength(maxLength, overflowChar, text, fontSize, fontFamily = "Helvetica", fontWeight = ""){
+    const font = `"${fontWeight} ${fontSize}px ${fontFamily}"`;
+    const inputText = Array.isArray(text) ? `['${text.join("','")}']` : `'${text}'`;
+    return await this.webView.evaluateJavaScript(`
+      ${TextLength.getTextWidth}
+      
+      ${TextLength.getMaxTextWidth}
+      
+      if(Array.isArray(${inputText})){
+        ${inputText}.map(t => getTextWithMaxWidth(${maxLength}, '${overflowChar}', t, ${font}));
+      } else {
+        getTextWithMaxWidth(${maxLength}, '${overflowChar}', ${inputText}, ${font});
+      }
+`, false);
+  }
+}
+
+const textLength = new TextLength();
+const lightDotsLength = await textLength.computeLength(settings.textOverflowChar, settings.textSize, settings.textFontFamilies.thin)
+
+async function computeWidget(fm, settings){
+  const widget = new ListWidget();
+  const recomputeBirthdays = !config.runsInWidget;
+  
+  const allData = recomputeBirthdays ? await updateAndGetCache(fm) : loadCache(fm);
+  
+  let nextContacts;
+  nextContacts = computeNextBirthdays(allData, settings);
+  
+  nextContacts = nextContactsAndRelativeDates(nextContacts);
+  
+  await composeWidget(widget, nextContacts, settings);
+  return widget;
+}
+
 async function composeWidget(widget, contacts, settings) {
   
   const { verticalSpacing, titleSize, titleSpacing, textSize, textSpacing, canvasSize, padding } = computeSizes(contacts.length, settings);
@@ -374,10 +363,11 @@ async function composeWidget(widget, contacts, settings) {
   // Padding is handled by text renderer
   widget.setPadding(...padding);
   
-  const bgColor = getColor(settings.paletteName, settings.backgroundColor);
+  const bgColor = new Color(settings.backgroundColor);
   widget.backgroundColor = bgColor;
+  console.log(bgColor)
   
-  const textColor = isDark(bgColor.hex) ? Color.white() : Color.black();
+  const textColor = isDark(settings.backgroundColor) ? Color.white() : Color.black();
   renderTitle(widget, titleSize, settings.title, textColor);
   
   await renderNextBirthdays(contacts, widget, canvasSize, titleSpacing, textSize, textSpacing, textColor);
@@ -401,8 +391,7 @@ function computeSizes(numContacts, settings){
   return { verticalSpacing, titleSize, titleSpacing, textSize, textSpacing, canvasSize, padding }
 }
 
-function displayAndHandleWidget(widget){
-  Script.setWidget(widget);
+function displayWidget(widget){
   widget.presentLarge();
 }
 
@@ -544,30 +533,103 @@ Thanks! 🙏`);
 
 
 
-// Coloring
+
+
+// Background Color
+
+function applyColorToScript(color){
+  const scriptContent = getScript();
+  const scriptWithNewColor = scriptContent.replace(/((?:const|let|var) *backgroundColor *= *[`'"])((?:#[0-9A-Fa-f]{6})?)([`'"])/, `$1${color}$3`);
+  updateScript(scriptWithNewColor);
+}
+
+// Custom
+async function setCustomBackgroundColor(){
+  const colorRegex = /^#[0-9A-Fa-f]{6}$/;
+  
+  let result = 0;
+  let isValid = null;
+  let normalizedColorValue;
+  while(!isValid && result > -1){
+    const inputAlert = new Alert();
+    inputAlert.message = `${isValid === false ? "Wrong color value! " : ""}Type in your custom hexadecimal 6-digit color value (e.g., #FA0407)`;
+    inputAlert.addAction("Validate and set color");
+    const textfield = inputAlert.addTextField("Your custom color", "");
+    inputAlert.addCancelAction("Cancel");
+    result = await inputAlert.present();
+    
+    normalizedColorValue = textfield.text.trim().replace(/^([^#])/, "#$1");
+    if(colorRegex.test(normalizedColorValue)){
+      isValid = true;
+      break;
+    }
+    textfield.text = normalizedColorValue;
+  }
+  if(normalizedColorValue !== ""){
+    applyColorToScript(normalizedColorValue);
+  }
+}
+
+// Choose from palettes
+async function setBackgroundColor(){
+  const selectedColor = await selectColor(getPalettes());
+  if(selectedColor == null){
+    console.log(`No color was selected.`)
+    return;
+  }
+  console.log(`Selected color: ${selectedColor}.`)
+  applyColorToScript(selectedColor)
+}
+
 // copied from https://24ways.org/2010/calculating-color-contrast
 function isDark(hexcolor){
-  const r = parseInt(hexcolor.substring(0,2),16);
-  const g = parseInt(hexcolor.substring(2,4),16);
-  const b = parseInt(hexcolor.substring(4,6),16);
+  const r = parseInt(hexcolor.substring(1,3),16);
+  const g = parseInt(hexcolor.substring(3,5),16);
+  const b = parseInt(hexcolor.substring(5,7),16);
   const yiq = ((r*299)+(g*587)+(b*114))/1000;
   return yiq < 128;
 }
 
-function getColor(paletteName, colorName) {
-  const palette = getPalette(paletteName);
-  const colorValue = getColorValue(palette, colorName);
-  return new Color(colorValue);
+async function selectColor(palettes){
+  let selectedColor = null;
+  const table = new UITable();
+  table.showSeparators = false;
+  
+  let index = 0;
+  for(let paletteName of Object.keys(palettes)){
+  if(index++ > 0){
+    const spacer = new UITableRow();
+    table.addRow(spacer)
+  }
+    
+    const paletteNameRow = new UITableRow();
+    const paletteNameCell = paletteNameRow.addText(paletteName.toUpperCase());
+    paletteNameCell.titleFont = Font.blackSystemFont(20);
+    table.addRow(paletteNameRow);
+    
+    const palette = palettes[paletteName];
+    for(let color of Object.keys(palette)){
+      const colorValue = palette[color];
+      const colorRow = new UITableRow();
+      colorRow.dismissOnSelect = true;
+      colorRow.onSelect = () => selectedColor = colorValue;
+      colorRow.backgroundColor = new Color(colorValue);
+      const colorDescription = colorRow.addText(color.toLowerCase(), colorValue.toUpperCase());
+      const textColor = isDark(colorValue) ? Color.white() : Color.black();
+      colorDescription.titleColor = textColor;
+      colorDescription.subtitleColor = textColor;
+      table.addRow(colorRow);
+    }
+  }
+  
+  await table.present(false);
+  return selectedColor;
 }
 
-function getColorValue(palette, colorName){
-  return palette != null && colorName in palette ? palette[colorName] : "#F44336";
-}
-
-function getPalette(paletteName) {
-  const palettes = {
+function getPalettes() {
+  return {
       "main": {
-        "yellow": "#FFD462",
+        "yellow": "#FFD60A",
         "orange": "#FF8B34",
         "red": "#D21034",
         "pink": "#FDBBE1",
@@ -579,13 +641,13 @@ function getPalette(paletteName) {
         "gray": "#AAAAAA"
     },
     "noble": {
-        "yellow": "#ffb703",
+        "yellow": "#FFC300",
         "orange": "#fb8500",
         "red": "#d62828",
-        "pink": "#ffc8dd",
-        "purple": "#ff006e",
-        "blue": "#023047",
-        "green": "#006d77",
+        "pink": "#FF5D8F",
+        "purple": "#5A189A",
+        "blue": "#1D3557",
+        "green": "#006466",
         "black": "#000814",
         "white": "#edf2f4",
         "gray": "#8d99ae"
@@ -611,8 +673,28 @@ function getPalette(paletteName) {
         "gray": "#D5DFDB"
     }
   };
+}
 
-  return paletteName in palettes ? palettes[paletteName] : palettes.main;
+
+
+
+
+// Widget Title Updating
+async function setWidgetTitle(settings){
+  const alert = new Alert();
+  alert.message = "Adjust the widget title";
+  const textfield = alert.addTextField("the new title", settings.title);
+  alert.addAction("Set new widget title");
+  alert.addCancelAction("Cancel");
+  const result = await alert.present();
+  
+  if(result > -1){
+    const trimmedTitle = normalizedColorValue = textfield.text.trim();
+  
+    const scriptContent = getScript();
+    const scriptWithNewTitle = scriptContent.replace(/((?:const|let|var) *widgetTitle *= *[`'"])(.*)([`'"])/, `$1${trimmedTitle}$3`);
+    updateScript(scriptWithNewTitle);
+  }
 }
 
 
@@ -623,15 +705,81 @@ function getPalette(paletteName) {
 
 // Script Updating
 function getScriptPath(){
-  return fm.joinPath(workingDir, Script.name());
+  return fm.joinPath(workingDir, Script.name() + ".js");
 }
 function getScript(){
   const scriptPath = getScriptPath();
-  return fm.readString(scriptPath + ".js");
+  return fm.readString(scriptPath);
 }
 
 function updateScript(newScript){
   const scriptPath = getScriptPath();
   fm.writeString(scriptPath, newScript);
-  importModule(scriptPath);
+}
+
+
+
+
+
+
+
+// User Actions
+async function handleUserActions(settings){
+  const alert = new Alert();
+  alert.addAction("🎨 Choose Background Color");
+  alert.addAction("🧑‍🎨 Set Custom Background Color");
+  alert.addAction("💯 Adjust Widget Title");
+  alert.addAction("👀 Display Widget");
+  alert.addCancelAction("Close");
+  alert.title = "What do you want to do?";
+  const result = await alert.presentAlert();
+  
+  let actionIndex = 0;
+  if(actionIndex++ === result){ 
+    return await setBackgroundColor();
+  } else if(actionIndex++ === result){
+    return await setCustomBackgroundColor();
+  } else if(actionIndex++ === result){
+    return await setWidgetTitle(settings);
+  } else if(actionIndex++ === result){
+    return displayWidget(widget);
+  }
+}
+
+
+
+
+
+
+
+
+
+// Main
+try{
+log(`Running script version ${version}`);
+  const start = new Date();
+  
+  const widget = await computeWidget(fm, settings);
+
+  Script.setWidget(widget);
+  setNextExecution(widget);
+  
+  const end = new Date()
+  log(`Widget update took ${end - start}ms.`)
+  
+  if(config.runsInApp){
+    await handleUserActions(settings);
+  }
+  
+} catch(e){
+  console.error(e);
+  const widget = new ListWidget();
+  setupErrorWidget(widget, e);
+  Script.setWidget(widget);
+  setNextExecution(widget);
+  if(config.runsInApp){
+    throw e;
+  }
+} finally {
+  Script.complete();
 }
