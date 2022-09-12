@@ -1,13 +1,13 @@
 /**
- * Author: Michael Gerischer
- * GitHub: https://github.com/GerMichael/ScriptableNextBirththdays
+ * @author: Michael Gerischer
+ * @github: https://github.com/GerMichael/ScriptableNextBirththdays
  */
 const version = "1.1.0";
 
 // === Script controlled variables ===
 // === DO NOT ALTER VARIABLE NAMES ===
 
-const backgroundColor = "#1D3557";
+const backgroundColor = "#14213D";
 const widgetTitle = "🎁 Next Birthdays 🎁";
 
 // ===================================
@@ -552,7 +552,7 @@ async function setCustomBackgroundColor(){
   let normalizedColorValue;
   while(!isValid && result > -1){
     const inputAlert = new Alert();
-    inputAlert.message = `${isValid === false ? "Wrong color value! " : ""}Type in your custom hexadecimal 6-digit color value (e.g., #FA0407)`;
+    inputAlert.message = `${isValid === false ? "⚠️ Wrong color value!\n" : ""}Type in your custom hexadecimal 6-digit color value (e.g., #FA0407)`;
     inputAlert.addAction("Validate and set color");
     const textfield = inputAlert.addTextField("Your custom color", "");
     inputAlert.addCancelAction("Cancel");
@@ -563,6 +563,7 @@ async function setCustomBackgroundColor(){
       isValid = true;
       break;
     }
+    isValid = false;
     textfield.text = normalizedColorValue;
   }
   if(normalizedColorValue !== ""){
@@ -614,7 +615,7 @@ async function selectColor(palettes){
       colorRow.dismissOnSelect = true;
       colorRow.onSelect = () => selectedColor = colorValue;
       colorRow.backgroundColor = new Color(colorValue);
-      const colorDescription = colorRow.addText(color.toLowerCase(), colorValue.toUpperCase());
+      const colorDescription = colorRow.addText(color, colorValue.toUpperCase());
       const textColor = isDark(colorValue) ? Color.white() : Color.black();
       colorDescription.titleColor = textColor;
       colorDescription.subtitleColor = textColor;
@@ -629,61 +630,77 @@ async function selectColor(palettes){
 function getPalettes() {
   return {
       "main": {
-        "yellow": "#FFD60A",
-        "orange": "#FF8B34",
-        "red": "#D21034",
-        "pink": "#FDBBE1",
-        "purple": "#C019FF",
-        "blue": "#4163B1",
-        "green": "#006233",
-        "black": "#000000",
-        "white": "#FFFFFF",
-        "gray": "#AAAAAA"
+        "Gold Web Golden Yellow": "#FFD60A",
+        "Red Orange Color Wheel": "#FF4800",
+        "Maximum Red": "#DD1C1A",
+        "Paradise Pink": "#EF476F",
+        "Byzantine Purple": "#B5179E",
+        "Ultramarine Blue": "#4361EE",
+        "Pakistan Green": "#007200",
+        "Windsor Tan Brown": "#99582A",
+        "Black": "#000000",
+        "White": "#FFFFFF",
+        "Gray": "#AAAAAA"
     },
     "noble": {
-        "yellow": "#FFC300",
-        "orange": "#fb8500",
-        "red": "#d62828",
-        "pink": "#FF5D8F",
-        "purple": "#5A189A",
-        "blue": "#1D3557",
-        "green": "#006466",
-        "black": "#000814",
-        "white": "#edf2f4",
-        "gray": "#8d99ae"
+        "Honey Yellow": "#FDB833",
+        "Spanish Orange": "#E36414",
+        "Ruby Red": "#9A031E",
+        "Tyrian Purple": "#5F0F40",
+        "Prussian Blue": "#003459",
+        "Bottle Green": "#226F54",
+        "Rich Black FOGRA 29": "#011627",
+        "Ghost White": "#FBFBFF",
+        "Slate Gray": "#70798C"
     },
     "dark": {
-        "red": "#660606",
-        "pink": "#966289",
-        "purple": "#62106A",
-        "blue": "#1A174D",
-        "green": "#0C3220",
-        "black": "#000000",
-        "gray": "#383838"
+        "Indian Yellow": "#E09F3E",
+        "Rosewood": "#540B0E",
+        "Antique Fuchsia": "#966289",
+        "Cyber Grape": "#5A3B72",
+        "Palatinate Purple": "#4D194D",
+        "Russian Violet": "#3A015C",
+        "Oxford Blue": "#14213D",
+        "MSU Green": "#004439",
+        "Kombu Green": "#283618",
+        "Seal Brown": "#582F0E",
+        "Black": "#000000",
+        "Jet Gray": "#343434"
     },
-    "smooth": {
-        "yellow": "#FDFF47",
-        "orange": "#FFAF54",
-        "red": "#FF7878",
-        "pink": "#EAABF3",
-        "purple": "#E279AE",
-        "blue": "#89A1FF",
-        "green": "#7ED6A8",
-        "white": "#FFFFFF",
-        "gray": "#D5DFDB"
-    }
+    "pastel": {
+        "Naples Yellow": "#FFE169",
+        "Yellow Orange": "#FFAF54",
+        "Light Coral": "#FF7878",
+        "Plum Web Rosa": "#EAABF3",
+        "Nadeshiko Pink": "#FFAFCC",
+        "Baby Blue": "#A2D2FF",
+        "Mint": "#52B788",
+        "Cafe Au Lait": "#B08968",
+        "Baby Powder": "#FAFDF6",
+        "Gainsboro": "#D5DFDB",
+    },
+    "bright": {
+      "Yellow": "#FFFF00",
+      "Red": "#FF0000",
+      "Magenta Process": "#F20089",
+      "Electric Purple": "#BE0AFF",
+      "Blue Jeans": "#00A6FB",
+      "Electric Blue": "#0AEFFF",
+      "Spring Bud": "#A1FF0A",
+      "Malachite Green": "#04E762",
+    },
   };
 }
 
 
 
-
+ 
 
 // Widget Title Updating
 async function setWidgetTitle(settings){
   const alert = new Alert();
   alert.message = "Adjust the widget title";
-  const textfield = alert.addTextField("the new title", settings.title);
+  const textfield = alert.addTextField("The new title", settings.title);
   alert.addAction("Set new widget title");
   alert.addCancelAction("Cancel");
   const result = await alert.present();

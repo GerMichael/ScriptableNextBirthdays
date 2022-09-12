@@ -5,13 +5,5 @@
 		}
 	],
 	"settings": {
-		"json.schemas": [
-			{
-				"fileMatch": [
-					"palettes/palettes.json"
-				],
-				"url": "./palettes/palettes.schema.json"
-			}
-		]
 	}
 }
