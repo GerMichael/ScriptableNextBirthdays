@@ -1,26 +1,34 @@
 /**
- * Author: Michael Gerischer
- * GitHub: https://github.com/GerMichael/ScriptableNextBirththdays
+ * @author: Michael Gerischer
+ * @github: https://github.com/GerMichael/ScriptableNextBirththdays
  */
-const version = "1.0.2";
+const version = "1.1.0";
 
-// === User Settings – Edit here ===
+// === Script controlled variables ===
+// === DO NOT ALTER VARIABLE NAMES ===
 
-// the hsv offset to compute the gradient. if the offset exceeds the limit, the value will be clamped, so no worries!
-//   1. index: 0-360: the angle (red to yellow to green to … to red)
-//   2. index: 0-1: saturation (e.g. white (0) to red (1))
-//   3. index: 0-1: (blackish) value (e.g. black (0) to red (1))
-const hsvGradientOffset = [-5,0,-.15];
+const backgroundColor = "#14213D";
+const widgetTitle = "🎁 Next Birthdays 🎁";
+
+// ===================================
+
+
+
+
+
+
+
+// === Script Settings – Be careful! ===
 
 const settings = {
   // title text: string
-  title: "🎁 Next Birthdays 🎁",
+  title: widgetTitle,
   // alignment of title: "center", "right", "left"
   titleAlignment: "center",
-  // the background: gradient(colorString) or monochrome(colorString)
-  // The colorString can be either "black", "white" or a variation of "yellow", "orange", "red", "pink", "purple", "blue", "green" and "gray"
-  // The variations are "light-[color]", "[color]" and "dark-[color]"
-  colorTheme: gradient("dark-blue"),
+  // the palette name defining the color values
+  paletteName: "noble",
+  // The actual color name picked from the selected palette
+  backgroundColor,
   // font family
   textFontFamilies: {
     regular: "Helvetica",
@@ -68,8 +76,8 @@ const settings = {
     default: 10,
   },
 }
-// == Do Not Edit Anything Below ==
 
+// == End of script settings ==
 
 
 
@@ -77,13 +85,6 @@ const settings = {
 
 // Tooling
 const TODAY = new Date();
-
-let fm = FileManager.local();
-
-if(fm.isFileStoredIniCloud(module.filename)){
-  fm = FileManager.iCloud();
-}
-
 
 function l0(num, places = 2){
   return String(num).padStart(places, '0')
@@ -105,72 +106,6 @@ function setNextExecution(widget) {
   widget.refreshAfterDate = tomorrow;
 }
 
-class TextLength {
-
-  static getTextWidth = `
-  function getTextWidth(text, font) {
-    // re-use canvas object for better performance
-    const canvas = getTextWidth.canvas || (getTextWidth.canvas = document.createElement("canvas"));
-    const context = canvas.getContext("2d");
-    context.font = font;
-    if(Array.isArray(text)){
-      return text.map(t => context.measureText(t).width);
-    }
-    return context.measureText(text).width;
-  }
- `;
-
-  static getMaxTextWidth = `
-  function getTextWithMaxWidth(maxWidth, overflowChar, text, font){
-    if(getTextWidth(text, font) < maxWidth){
-      return text;
-    }
-    let trimmedText = "";
-    for(let i = 0; i < text.length; i++){
-      const newTrimmedText = trimmedText + text.charAt(i);
-      if (getTextWidth(newTrimmedText + overflowChar, font) < maxWidth){
-        trimmedText = newTrimmedText;
-      } else {
-        return trimmedText.trim() + overflowChar;
-      }
-    }
-  }
-`;
-
-  constructor() {
-    this.webView = new WebView();
-    this.webView.loadHTML("<html></html>");
-  }
-  
-  async computeLength(text, fontSize, fontFamily = "Helvetica", fontWeight = ""){
-    const font = `"${fontWeight} ${fontSize}px ${fontFamily}"`;
-    const inputText = Array.isArray(text) ? `['${text.join("','")}']` : `'${text}'`;
-    return await this.webView.evaluateJavaScript(`
-      ${TextLength.getTextWidth}
-
-      getTextWidth(${inputText}, ${font});
-`, false);
-  }
-  
-  async getTextWithMaxLength(maxLength, overflowChar, text, fontSize, fontFamily = "Helvetica", fontWeight = ""){
-    const font = `"${fontWeight} ${fontSize}px ${fontFamily}"`;
-    const inputText = Array.isArray(text) ? `['${text.join("','")}']` : `'${text}'`;
-    return await this.webView.evaluateJavaScript(`
-      ${TextLength.getTextWidth}
-      
-      ${TextLength.getMaxTextWidth}
-      
-      if(Array.isArray(${inputText})){
-        ${inputText}.map(t => getTextWithMaxWidth(${maxLength}, '${overflowChar}', t, ${font}));
-      } else {
-        getTextWithMaxWidth(${maxLength}, '${overflowChar}', ${inputText}, ${font});
-      }
-`, false);
-  }
-}
-
-const textLength = new TextLength();
-const lightDotsLength = await textLength.computeLength(settings.textOverflowChar, settings.textSize, settings.textFontFamilies.thin)
 
 function getValueForWidgetType(obj, defaultValue) {
   if(config.widgetFamily in obj){
@@ -182,6 +117,12 @@ function getValueForWidgetType(obj, defaultValue) {
   }
 }
 
+
+
+
+
+
+// File Handling
 class NoCacheFileError extends Error {
   constructor(path){
     super(`The cache file ${path} does not exist!`);
@@ -189,48 +130,16 @@ class NoCacheFileError extends Error {
   }
 }
 
+let fm = FileManager.local();
 
+if(fm.isFileStoredIniCloud(module.filename)){
+  fm = FileManager.iCloud();
+}
 
-
-// Script Settings
 const workingDir = fm.documentsDirectory();
 const contactsCacheFileName = "__nextBirthdays.cache";
 const contactsCacheFile = fm.joinPath(workingDir, contactsCacheFileName);
 
-
-
-
-// Main
-try{
-log(`Running script version ${version}`);
-  const start = new Date();
-  
-  const widget = new ListWidget();
-  const recomputeBirthdays = !config.runsInWidget;
-  
-  const allData = recomputeBirthdays ? await updateAndGetCache(fm) : loadCache(fm);
-  
-  let nextContacts;
-  nextContacts = computeNextBirthdays(allData, settings);
-  
-  nextContacts = nextContactsAndRelativeDates(nextContacts);
-  
-  await composeWidget(widget, nextContacts, settings);
-  
-  displayAndHandleWidget(widget);
-  setNextExecution(widget);
-  
-  const end = new Date()
-  log(`Script took ${end - start}ms.`)
-} catch(e){
-  console.error(e);
-  const widget = new ListWidget();
-  setupErrorWidget(widget, e);
-  displayAndHandleWidget(widget);
-  // throw e;
-} finally {
-  Script.complete();
-}
 
 
 
@@ -241,7 +150,6 @@ async function updateAndGetCache(fm) {
   const allData = await computeBirthdays();
       
   fm.writeString(contactsCacheFile, JSON.stringify(allData));
-  log(`Updated cache successfully: ${contactsCacheFile}`);
   
   return allData;
 }
@@ -365,7 +273,89 @@ function computeYearsDiff(today, date){
 
 
 
-// UI Handling
+// Widget Composition
+class TextLength {
+
+  static getTextWidth = `
+  function getTextWidth(text, font) {
+    // re-use canvas object for better performance
+    const canvas = getTextWidth.canvas || (getTextWidth.canvas = document.createElement("canvas"));
+    const context = canvas.getContext("2d");
+    context.font = font;
+    if(Array.isArray(text)){
+      return text.map(t => context.measureText(t).width);
+    }
+    return context.measureText(text).width;
+  }
+ `;
+
+  static getMaxTextWidth = `
+  function getTextWithMaxWidth(maxWidth, overflowChar, text, font){
+    if(getTextWidth(text, font) < maxWidth){
+      return text;
+    }
+    let trimmedText = "";
+    for(let i = 0; i < text.length; i++){
+      const newTrimmedText = trimmedText + text.charAt(i);
+      if (getTextWidth(newTrimmedText + overflowChar, font) < maxWidth){
+        trimmedText = newTrimmedText;
+      } else {
+        return trimmedText.trim() + overflowChar;
+      }
+    }
+  }
+`;
+
+  constructor() {
+    this.webView = new WebView();
+    this.webView.loadHTML("<html></html>");
+  }
+  
+  async computeLength(text, fontSize, fontFamily = "Helvetica", fontWeight = ""){
+    const font = `"${fontWeight} ${fontSize}px ${fontFamily}"`;
+    const inputText = Array.isArray(text) ? `['${text.join("','")}']` : `'${text}'`;
+    return await this.webView.evaluateJavaScript(`
+      ${TextLength.getTextWidth}
+
+      getTextWidth(${inputText}, ${font});
+`, false);
+  }
+  
+  async getTextWithMaxLength(maxLength, overflowChar, text, fontSize, fontFamily = "Helvetica", fontWeight = ""){
+    const font = `"${fontWeight} ${fontSize}px ${fontFamily}"`;
+    const inputText = Array.isArray(text) ? `['${text.join("','")}']` : `'${text}'`;
+    return await this.webView.evaluateJavaScript(`
+      ${TextLength.getTextWidth}
+      
+      ${TextLength.getMaxTextWidth}
+      
+      if(Array.isArray(${inputText})){
+        ${inputText}.map(t => getTextWithMaxWidth(${maxLength}, '${overflowChar}', t, ${font}));
+      } else {
+        getTextWithMaxWidth(${maxLength}, '${overflowChar}', ${inputText}, ${font});
+      }
+`, false);
+  }
+}
+
+const textLength = new TextLength();
+const lightDotsLength = await textLength.computeLength(settings.textOverflowChar, settings.textSize, settings.textFontFamilies.thin)
+
+async function computeWidget(fm, settings){
+  const widget = new ListWidget();
+  const recomputeBirthdays = !config.runsInWidget;
+  
+  const allData = recomputeBirthdays ? await updateAndGetCache(fm) : loadCache(fm);
+  
+  let nextContacts;
+  nextContacts = computeNextBirthdays(allData, settings);
+  
+  nextContacts = nextContactsAndRelativeDates(nextContacts);
+  
+  await composeWidget(widget, nextContacts, settings);
+  return widget;
+}
+
 async function composeWidget(widget, contacts, settings) {
   
   const { verticalSpacing, titleSize, titleSpacing, textSize, textSpacing, canvasSize, padding } = computeSizes(contacts.length, settings);
@@ -373,15 +363,14 @@ async function composeWidget(widget, contacts, settings) {
   // Padding is handled by text renderer
   widget.setPadding(...padding);
   
-  if(settings.colorTheme.type === "gradient"){
-    widget.backgroundGradient = settings.colorTheme.gradient;
-  } else if(settings.colorTheme.type === "monochrome"){
-    widget.backgroundColor = settings.colorTheme.color;
-  }
+  const bgColor = new Color(settings.backgroundColor);
+  widget.backgroundColor = bgColor;
+  console.log(bgColor)
   
-  renderTitle(widget, titleSize, settings.title);
+  const textColor = isDark(settings.backgroundColor) ? Color.white() : Color.black();
+  renderTitle(widget, titleSize, settings.title, textColor);
   
-  await renderNextBirthdays(contacts, widget, canvasSize, titleSpacing, textSize, textSpacing, settings);
+  await renderNextBirthdays(contacts, widget, canvasSize, titleSpacing, textSize, textSpacing, textColor);
   
   return widget;
 }
@@ -402,16 +391,15 @@ function computeSizes(numContacts, settings){
   return { verticalSpacing, titleSize, titleSpacing, textSize, textSpacing, canvasSize, padding }
 }
 
-function displayAndHandleWidget(widget){
-  Script.setWidget(widget);
+function displayWidget(widget){
   widget.presentLarge();
 }
 
-function renderTitle(widget, titleSize, title){
+function renderTitle(widget, titleSize, title, titleColor){
   const titleElement = widget.addText(title);
   
   titleElement.font = new Font(settings.textFontFamilies.regular, titleSize);
-  titleElement.textColor = settings.colorTheme.textColor;
+  titleElement.textColor = titleColor;
   switch(settings.titleAlignment){
     case "right": 
       titleElement.rightAlignText(); break;
@@ -452,12 +440,12 @@ function normalizeCanvasSize(canvasSize, paddingTop, paddingX, verticalSpacing, 
   }
 }
 
-async function renderNextBirthdays(contacts, widget, canvasSize, titleSpacing, textSize, textSpacing) {
+async function renderNextBirthdays(contacts, widget, canvasSize, titleSpacing, textSize, textSpacing, textColor) {
   const canvas = new DrawContext();
   canvas.respectScreenScale = true;
   canvas.opaque = false;
   canvas.size = new Size(canvasSize.x, canvasSize.y);
-canvas.setTextColor(settings.colorTheme.textColor);
+  canvas.setTextColor(textColor);
 
   const dayUnit = getValueForWidgetType(settings.dayUnit, "d")
   const untilDates = contacts.map(c => {
@@ -545,174 +533,270 @@ Thanks! 🙏`);
 
 
 
-// Coloring
 
-function clamp(value, min, max){
-  return Math.min(Math.max(value, min), max);
+
+// Background Color
+
+function applyColorToScript(color){
+  const scriptContent = getScript();
+  const scriptWithNewColor = scriptContent.replace(/((?:const|let|var) *backgroundColor *= *[`'"])((?:#[0-9A-Fa-f]{6})?)([`'"])/, `$1${color}$3`);
+  updateScript(scriptWithNewColor);
 }
 
-// algorithm copied from https://en.m.wikipedia.org/wiki/HSL_and_HSV
-function hsvToRgb(h,s,v){
-  // chroma
-  const c = v * s;
-  const h1 = h / 60;
-  const x = c * (1 - Math.abs(h1 % 2 - 1));
-  const m = v - c;
-  const [r1,g1,b1] = h1 < 1 ? [c,x,0] : 
-                     h1 < 2 ? [x,c,0] :
-                     h1 < 3 ? [0,c,x] :
-                     h1 < 4 ? [0,x,c] :
-                     h1 < 5 ? [x,0,c] :
-                              [c,0,x];
-
-  return [(r1+m)*255, (g1+m)*255, (b1+m)*255]
-}
-
-function rgbToHex(r1, g1, b1){
-  const [r,g,b] = [r1, g1, b1].map(Math.round);
-  const rr = r.toString(16).padStart(2, 0);
-  const gg = g.toString(16).padStart(2, 0);
-  const bb = b.toString(16).padStart(2, 0);
-
-  return `#${rr}${gg}${bb}`;
-}
-
-function getTextColors(){
-  const whiteTextColor = new Color("#FFF");
-  const blackTextColor = new Color("#000");
-  return { whiteTextColor, blackTextColor };
-}
-
-function gradient(colorString, bottomColorOffset = hsvGradientOffset){
-  const gradient = new LinearGradient();
-  gradient.locations = [.4,1];
+// Custom
+async function setCustomBackgroundColor(){
+  const colorRegex = /^#[0-9A-Fa-f]{6}$/;
   
-  const {color: hsvBody, textColor} = getBaseHsvAndTextColor(colorString);
-
-  const bottomHsvAngle = (hsvBody[0] + bottomColorOffset[0]) % 360;
-  const hsvBottom = [
-    bottomHsvAngle < 0 ? 360 + bottomHsvAngle : bottomHsvAngle,
-    clamp(hsvBody[1] + bottomColorOffset[1], 0,1),
-    clamp(hsvBody[2] + bottomColorOffset[2], 0,1)
-  ];
-  
-  const rgbBody = hsvToRgb(...hsvBody);
-  const hexBody = rgbToHex(...rgbBody);
-  const colorBody = new Color(hexBody);
-  const rgbBottom = hsvToRgb(...hsvBottom);
-  const hexBottom = rgbToHex(...rgbBottom);
-  const colorBottom = new Color(hexBottom);
-  
-  gradient.colors = [colorBody, colorBottom];
-  return {type: "gradient", gradient, textColor};
-}
-
-function monochrome(colorString) {
-  const {color, textColor} = getBaseHsvAndTextColor(colorString)
-  
-  const rgb = hsvToRgb(...color);
-  const hex = rgbToHex(...rgb);
-  
-  return {type: "monochrome", color: new Color(hex), textColor}
-}
-
-function getBaseHsvAndTextColor(colorString){
-  const { whiteTextColor, blackTextColor } = getTextColors();
-  let textColor = whiteTextColor;
-  let color;
-  
-  switch(colorString){
-    case "light-yellow":
-      color = [52,.8,1];
-      textColor = blackTextColor;
+  let result = 0;
+  let isValid = null;
+  let normalizedColorValue;
+  while(!isValid && result > -1){
+    const inputAlert = new Alert();
+    inputAlert.message = `${isValid === false ? "⚠️ Wrong color value!\n" : ""}Type in your custom hexadecimal 6-digit color value (e.g., #FA0407)`;
+    inputAlert.addAction("Validate and set color");
+    const textfield = inputAlert.addTextField("Your custom color", "");
+    inputAlert.addCancelAction("Cancel");
+    result = await inputAlert.present();
+    
+    normalizedColorValue = textfield.text.trim().replace(/^([^#])/, "#$1");
+    if(colorRegex.test(normalizedColorValue)){
+      isValid = true;
       break;
-    case "yellow": 
-      color = [48,.85,1];
-      textColor = blackTextColor;
-      break;
-    case "dark-yellow":
-      color = [42,1,.94];
-      textColor = blackTextColor;
-      break;
-    case "light-orange":
-      color = [40,.80,1];
-      textColor = blackTextColor;
-      break;
-    case "orange":
-      color = [33,.80,1];
-      textColor = blackTextColor;
-      break;
-    case "dark-orange":
-      color = [20,.96,.74];
-      break;
-    case "light-red":
-      color = [8,.72,1];
-      textColor = blackTextColor;
-      break;
-    case "red":
-      color = [4,.78,.91];
-      break;
-    case "dark-red": 
-      color = [0,1,.53];
-      break;
-    case "light-pink":
-      color = [320,.33,1];
-      textColor = blackTextColor;
-      break;
-    case "pink":
-      color = [320,.66,1];
-      break;
-    case "dark-pink":
-      color = [320,.96,.69];
-      break;
-    case "light-purple": 
-      color = [281,.37,1];
-      textColor = blackTextColor;
-      break;
-    case "purple":
-      color = [281,.72,.81];
-      break;
-    case "dark-purple":
-      color = [281,.68,.44];
-      break;
-    case "light-blue":
-      color = [191,1,.86];
-      break;
-    case "blue":
-      color = [210,.73,.8];
-      break;
-    case "dark-blue":
-      color = [212,.68,.31];
-      break;
-    case "light-green":
-      color = [96,.68,.89];
-      textColor = blackTextColor;
-      break;
-    case "green":
-      color = [107,.67,.6];
-      break;
-    case "dark-green":
-      color = [136,.96,.31];
-      break;
-    case "light-gray":
-      color = [0,0,.76];
-      textColor = blackTextColor;
-      break;
-    case "gray":
-      color = [224,.06,.40];
-      break;
-    case "dark-gray":
-      color = [224,.12,.3];
-      break;
-    case "black":
-      color = [0,0,.15];
-      break;
-    case "white":
-      color = [0,0,1];
-      textColor = blackTextColor;
-      break;
-    default:
-      color = [4,.78,.96];
+    }
+    isValid = false;
+    textfield.text = normalizedColorValue;
   }
-  return {type: "hsv", color, textColor};
+  if(normalizedColorValue !== ""){
+    applyColorToScript(normalizedColorValue);
+  }
+}
+
+// Choose from palettes
+async function setBackgroundColor(){
+  const selectedColor = await selectColor(getPalettes());
+  if(selectedColor == null){
+    console.log(`No color was selected.`)
+    return;
+  }
+  console.log(`Selected color: ${selectedColor}.`)
+  applyColorToScript(selectedColor)
+}
+
+// copied from https://24ways.org/2010/calculating-color-contrast
+function isDark(hexcolor){
+  const r = parseInt(hexcolor.substring(1,3),16);
+  const g = parseInt(hexcolor.substring(3,5),16);
+  const b = parseInt(hexcolor.substring(5,7),16);
+  const yiq = ((r*299)+(g*587)+(b*114))/1000;
+  return yiq < 128;
+}
+
+async function selectColor(palettes){
+  let selectedColor = null;
+  const table = new UITable();
+  table.showSeparators = false;
+  
+  let index = 0;
+  for(let paletteName of Object.keys(palettes)){
+  if(index++ > 0){
+    const spacer = new UITableRow();
+    table.addRow(spacer)
+  }
+    
+    const paletteNameRow = new UITableRow();
+    const paletteNameCell = paletteNameRow.addText(paletteName.toUpperCase());
+    paletteNameCell.titleFont = Font.blackSystemFont(20);
+    table.addRow(paletteNameRow);
+    
+    const palette = palettes[paletteName];
+    for(let color of Object.keys(palette)){
+      const colorValue = palette[color];
+      const colorRow = new UITableRow();
+      colorRow.dismissOnSelect = true;
+      colorRow.onSelect = () => selectedColor = colorValue;
+      colorRow.backgroundColor = new Color(colorValue);
+      const colorDescription = colorRow.addText(color, colorValue.toUpperCase());
+      const textColor = isDark(colorValue) ? Color.white() : Color.black();
+      colorDescription.titleColor = textColor;
+      colorDescription.subtitleColor = textColor;
+      table.addRow(colorRow);
+    }
+  }
+  
+  await table.present(false);
+  return selectedColor;
+}
+
+function getPalettes() {
+  return {
+      "main": {
+        "Gold Web Golden Yellow": "#FFD60A",
+        "Red Orange Color Wheel": "#FF4800",
+        "Maximum Red": "#DD1C1A",
+        "Paradise Pink": "#EF476F",
+        "Byzantine Purple": "#B5179E",
+        "Ultramarine Blue": "#4361EE",
+        "Pakistan Green": "#007200",
+        "Windsor Tan Brown": "#99582A",
+        "Black": "#000000",
+        "White": "#FFFFFF",
+        "Gray": "#AAAAAA"
+    },
+    "noble": {
+        "Honey Yellow": "#FDB833",
+        "Spanish Orange": "#E36414",
+        "Ruby Red": "#9A031E",
+        "Tyrian Purple": "#5F0F40",
+        "Prussian Blue": "#003459",
+        "Bottle Green": "#226F54",
+        "Rich Black FOGRA 29": "#011627",
+        "Ghost White": "#FBFBFF",
+        "Slate Gray": "#70798C"
+    },
+    "dark": {
+        "Indian Yellow": "#E09F3E",
+        "Rosewood": "#540B0E",
+        "Antique Fuchsia": "#966289",
+        "Cyber Grape": "#5A3B72",
+        "Palatinate Purple": "#4D194D",
+        "Russian Violet": "#3A015C",
+        "Oxford Blue": "#14213D",
+        "MSU Green": "#004439",
+        "Kombu Green": "#283618",
+        "Seal Brown": "#582F0E",
+        "Black": "#000000",
+        "Jet Gray": "#343434"
+    },
+    "pastel": {
+        "Naples Yellow": "#FFE169",
+        "Yellow Orange": "#FFAF54",
+        "Light Coral": "#FF7878",
+        "Plum Web Rosa": "#EAABF3",
+        "Nadeshiko Pink": "#FFAFCC",
+        "Baby Blue": "#A2D2FF",
+        "Mint": "#52B788",
+        "Cafe Au Lait": "#B08968",
+        "Baby Powder": "#FAFDF6",
+        "Gainsboro": "#D5DFDB",
+    },
+    "bright": {
+      "Yellow": "#FFFF00",
+      "Red": "#FF0000",
+      "Magenta Process": "#F20089",
+      "Electric Purple": "#BE0AFF",
+      "Blue Jeans": "#00A6FB",
+      "Electric Blue": "#0AEFFF",
+      "Spring Bud": "#A1FF0A",
+      "Malachite Green": "#04E762",
+    },
+  };
+}
+
+
+
+ 
+
+// Widget Title Updating
+async function setWidgetTitle(settings){
+  const alert = new Alert();
+  alert.message = "Adjust the widget title";
+  const textfield = alert.addTextField("The new title", settings.title);
+  alert.addAction("Set new widget title");
+  alert.addCancelAction("Cancel");
+  const result = await alert.present();
+  
+  if(result > -1){
+    const trimmedTitle = normalizedColorValue = textfield.text.trim();
+  
+    const scriptContent = getScript();
+    const scriptWithNewTitle = scriptContent.replace(/((?:const|let|var) *widgetTitle *= *[`'"])(.*)([`'"])/, `$1${trimmedTitle}$3`);
+    updateScript(scriptWithNewTitle);
+  }
+}
+
+
+
+
+
+
+
+// Script Updating
+function getScriptPath(){
+  return fm.joinPath(workingDir, Script.name() + ".js");
+}
+function getScript(){
+  const scriptPath = getScriptPath();
+  return fm.readString(scriptPath);
+}
+
+function updateScript(newScript){
+  const scriptPath = getScriptPath();
+  fm.writeString(scriptPath, newScript);
+}
+
+
+
+
+
+
+
+// User Actions
+async function handleUserActions(widget, settings){
+  const alert = new Alert();
+  alert.addAction("🎨 Choose Background Color");
+  alert.addAction("🧑‍🎨 Set Custom Background Color");
+  alert.addAction("💯 Adjust Widget Title");
+  alert.addAction("👀 Display Widget");
+  alert.addCancelAction("Close");
+  alert.title = "What do you want to do?";
+  const result = await alert.presentAlert();
+  
+  let actionIndex = 0;
+  if(actionIndex++ === result){ 
+    return await setBackgroundColor();
+  } else if(actionIndex++ === result){
+    return await setCustomBackgroundColor();
+  } else if(actionIndex++ === result){
+    return await setWidgetTitle(settings);
+  } else if(actionIndex++ === result){
+    return displayWidget(widget);
+  }
+}
+
+
+
+
+
+
+
+
+
+// Main
+try{
+log(`Running script version ${version}`);
+  const start = new Date();
+  
+  const widget = await computeWidget(fm, settings);
+
+  Script.setWidget(widget);
+  setNextExecution(widget);
+  
+  const end = new Date()
+  log(`Widget update took ${end - start}ms.`)
+  
+  if(config.runsInApp){
+    await handleUserActions(widget, settings);
+  }
+  
+} catch(e){
+  console.error(e);
+  const widget = new ListWidget();
+  setupErrorWidget(widget, e);
+  Script.setWidget(widget);
+  setNextExecution(widget);
+  if(config.runsInApp){
+    throw e;
+  }
+} finally {
+  Script.complete();
 }
