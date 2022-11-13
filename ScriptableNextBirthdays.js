@@ -2,7 +2,7 @@
  * @author: Michael Gerischer
  * @github: https://github.com/GerMichael/ScriptableNextBirththdays
  */
-const version = "1.1.0";
+const version = "1.1.1";
 
 // === Script controlled variables ===
 // === DO NOT ALTER VARIABLE NAMES ===
@@ -52,6 +52,8 @@ const settings = {
     medium: 18,
     default: 26,
   },
+  // default size of text if no contacts were found
+  defaultTextSize: 20,
   // spacing between text columns
   textColumnSpacing: {
     small: 4,
@@ -209,6 +211,10 @@ function loadCache(fm) {
 
 function computeNextBirthdays(persons, settings){
   
+  if(persons.length === 0){
+    return [];
+  }
+  
   let numOfContacts = getValueForWidgetType(settings.numberOfContactsForWidgetSize, 8);
   
   const today = normalizeDate(TODAY);
@@ -261,6 +267,9 @@ function nextContactsAndRelativeDates(contacts){
 function computeDateDiff(today, date){
   const dateCopy = new Date(date);
   dateCopy.setFullYear(today.getFullYear());
+  if(dateCopy < today){
+    dateCopy.setFullYear(today.getFullYear() + 1);
+  }
   return Math.ceil((dateCopy - today) / (24 * 60 * 60 * 1000));
 }
 
@@ -345,10 +354,10 @@ async function computeWidget(fm, settings){
   const widget = new ListWidget();
   const recomputeBirthdays = !config.runsInWidget;
   
-  const allData = recomputeBirthdays ? await updateAndGetCache(fm) : loadCache(fm);
+  const allBirthdays = recomputeBirthdays ? await updateAndGetCache(fm) : loadCache(fm);
   
   let nextContacts;
-  nextContacts = computeNextBirthdays(allData, settings);
+  nextContacts = computeNextBirthdays(allBirthdays, settings);
   
   nextContacts = nextContactsAndRelativeDates(nextContacts);
   
@@ -358,7 +367,15 @@ async function computeWidget(fm, settings){
 
 async function composeWidget(widget, contacts, settings) {
   
-  const { verticalSpacing, titleSize, titleSpacing, textSize, textSpacing, canvasSize, padding } = computeSizes(contacts.length, settings);
+  const {
+    verticalSpacing, 
+    titleSize, 
+    titleSpacing, 
+    textSize, 
+    textSpacing, 
+    canvasSize, 
+    padding
+  } = computeSizes(contacts.length, settings);
 
   // Padding is handled by text renderer
   widget.setPadding(...padding);
@@ -368,9 +385,31 @@ async function composeWidget(widget, contacts, settings) {
   console.log(bgColor)
   
   const textColor = isDark(settings.backgroundColor) ? Color.white() : Color.black();
-  renderTitle(widget, titleSize, settings.title, textColor);
+  renderTitle(
+    widget, 
+    titleSize, 
+    settings.title, 
+    textColor, 
+    settings.textFontFamilies);
+
+  if(contacts.length < 1){
+    renderNoContactsMsg(
+      widget, 
+      (canvasSize.y - textSize) / 2 - padding[3], 
+      textSize, 
+      textColor, 
+      settings.textFontFamilies);
+    return widget;
+  }
   
-  await renderNextBirthdays(contacts, widget, canvasSize, titleSpacing, textSize, textSpacing, textColor);
+  await renderNextBirthdays(
+    contacts, 
+    widget, 
+    canvasSize, 
+    titleSpacing, 
+    textSize, 
+    textSpacing, 
+    textColor);
   
   return widget;
 }
@@ -385,8 +424,13 @@ function computeSizes(numContacts, settings){
   
   const canvasSize = getCanvasSize(padding[0], padding[1], verticalSpacing, titleSize)
 
-  const textSize = (canvasSize.y - padding[3] - titleSpacing) / (numContacts + (numContacts - 1) * verticalSpacing)
-  const textSpacing = textSize * verticalSpacing;
+  const textSize = numContacts < 1 ? 
+    settings.defaultTextSize : 
+    (canvasSize.y - padding[3] - titleSpacing) / (numContacts + (numContacts - 1) * verticalSpacing);
+  
+  const textSpacing = numContacts < 1 ? 
+    0 :
+    textSize * verticalSpacing;
 
   return { verticalSpacing, titleSize, titleSpacing, textSize, textSpacing, canvasSize, padding }
 }
@@ -395,10 +439,10 @@ function displayWidget(widget){
   widget.presentLarge();
 }
 
-function renderTitle(widget, titleSize, title, titleColor){
+function renderTitle(widget, titleSize, title, titleColor, textFontFamilies){
   const titleElement = widget.addText(title);
   
-  titleElement.font = new Font(settings.textFontFamilies.regular, titleSize);
+  titleElement.font = new Font(textFontFamilies.regular, titleSize);
   titleElement.textColor = titleColor;
   switch(settings.titleAlignment){
     case "right": 
@@ -409,6 +453,15 @@ function renderTitle(widget, titleSize, title, titleColor){
     default:
       titleElement.centerAlignText();
   }
+}
+
+function renderNoContactsMsg(widget, marginTopBottom, textSize, textColor, textFontFamilies){
+  widget.addSpacer(marginTopBottom);
+  const text = widget.addText("No contacts found.");
+  text.font = new Font(textFontFamilies.regular, textSize);
+  text.textColor = textColor;
+  text.centerAlignText();
+  widget.addSpacer(marginTopBottom);
 }
 
 function getCanvasSize(paddingTop, paddingX, verticalSpacing, titleSize){
