@@ -2,7 +2,7 @@
  * @author: Michael Gerischer
  * @github: https://github.com/GerMichael/ScriptableNextBirththdays
  */
-const version = "1.1.1";
+const version = "1.1.2";
 
 // === Script controlled variables ===
 // === DO NOT ALTER VARIABLE NAMES ===
@@ -322,7 +322,11 @@ class TextLength {
   
   async computeLength(text, fontSize, fontFamily = "Helvetica", fontWeight = ""){
     const font = `"${fontWeight} ${fontSize}px ${fontFamily}"`;
-    const inputText = Array.isArray(text) ? `['${text.join("','")}']` : `'${text}'`;
+    const escapedText =
+Array.isArray(text) ? text.map(t => t.replaceAll("'", "\\'")) : text.replaceAll("'", "\\'");
+const inputText = Array.isArray(escapedText) ? `['${
+ escapedText.join("', '")}']` : `'${escapedText}'`;
+    
     return await this.webView.evaluateJavaScript(`
       ${TextLength.getTextWidth}
 
@@ -332,7 +336,11 @@ class TextLength {
   
   async getTextWithMaxLength(maxLength, overflowChar, text, fontSize, fontFamily = "Helvetica", fontWeight = ""){
     const font = `"${fontWeight} ${fontSize}px ${fontFamily}"`;
-    const inputText = Array.isArray(text) ? `['${text.join("','")}']` : `'${text}'`;
+    const escapedText =
+Array.isArray(text) ? text.map(t => t.replaceAll("'", "\\'")) : text.replaceAll("'", "\\'");
+const inputText = Array.isArray(escapedText) ? `['${
+ escapedText.join("', '")}']` : `'${escapedText}'`;
+    
     return await this.webView.evaluateJavaScript(`
       ${TextLength.getTextWidth}
       
