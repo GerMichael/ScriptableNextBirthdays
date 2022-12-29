@@ -2,7 +2,7 @@
  * @author: Michael Gerischer
  * @github: https://github.com/GerMichael/ScriptableNextBirththdays
  */
-const version = "1.1.2";
+const version = "1.1.3";
 
 // === Script controlled variables ===
 // === DO NOT ALTER VARIABLE NAMES ===
@@ -48,6 +48,7 @@ const settings = {
   },
   // Text size of title: number
   titleSize: {
+    accessoryRectangular: 0,
     small: 12,
     medium: 18,
     default: 26,
@@ -67,12 +68,14 @@ const settings = {
   },
   // Number of displayed contacts for widget sizes
   numberOfContactsForWidgetSize: {
+    accessoryRectangular: 3,
     small: 6,
     medium: 5,
     default: 8,
   },
   // left, right, top, bottom padding of widget: number
   widgetPadding: {
+    accessoryRectangular: 0,
     small: 3,
     medium: 7,
     default: 10,
@@ -209,9 +212,9 @@ function loadCache(fm) {
   return contacts.map(c => ({...c, birthday: new Date(c.birthday) }));
 }
 
-function computeNextBirthdays(persons, settings){
+function computeNextBirthdays(people, settings){
   
-  if(persons.length === 0){
+  if(people.length === 0){
     return [];
   }
   
@@ -220,19 +223,19 @@ function computeNextBirthdays(persons, settings){
   const today = normalizeDate(TODAY);
   
   // If last item is before today, start in the new year again
-  if(today > normalizeDate(persons[persons.length - 1].birthday)){
-    getNextEntries(0, numOfContacts, persons);
+  if(today > normalizeDate(people[people.length - 1].birthday)){
+    return getNextEntries(0, numOfContacts, people);
   }
   
   // Binary search of the next birthday
   let start = 0;
-  let end = persons.length - 1;
+  let end = people.length - 1;
   let i;
 
   while (start < end) {
     i = Math.floor((end - start) / 2 + start);
-    const bday = normalizeDate(persons[i].birthday);
-    const person = persons[i];
+    const bday = normalizeDate(people[i].birthday);
+    const person = people[i];
 
     if(bday < today){
       start = i + 1; 
@@ -242,8 +245,8 @@ function computeNextBirthdays(persons, settings){
   }
   
   // adding people's birthday of the "next" year, if there are too few for "this" year
-  const personsIgnoringEndOfYear = start + numOfContacts < persons.length ? persons : [...persons, ...persons.slice(0, end)];
-  return getNextEntries(start, numOfContacts, personsIgnoringEndOfYear);
+  const peopleIgnoringEndOfYear = start + numOfContacts < people.length ? people : [...people, ...people.slice(0, end)];
+  return getNextEntries(start, numOfContacts, peopleIgnoringEndOfYear);
 }
 
 function getNextEntries(start, count, array){
@@ -448,6 +451,9 @@ function displayWidget(widget){
 }
 
 function renderTitle(widget, titleSize, title, titleColor, textFontFamilies){
+  if(titleSize === 0){
+    return;
+  }
   const titleElement = widget.addText(title);
   
   titleElement.font = new Font(textFontFamilies.regular, titleSize);
@@ -481,6 +487,9 @@ function getCanvasSize(paddingTop, paddingX, verticalSpacing, titleSize){
       break;      
     case "small":
       canvasSize = {x: 169, y: 169};
+      break;
+    case "accessoryRectangular":
+      canvasSize = {x: 420, y: 169};
       break;
     case "medium":
       canvasSize = {x: 360, y: 169};
