@@ -2,7 +2,7 @@
  * @author: Michael Gerischer
  * @github: https://github.com/GerMichael/ScriptableNextBirththdays
  */
-const version = "1.1.3";
+const version = "1.1.4";
 
 // === Script controlled variables ===
 // === DO NOT ALTER VARIABLE NAMES ===
@@ -127,14 +127,25 @@ function getValueForWidgetType(obj, defaultValue) {
 
 
 
-// File Handling
+// Errors
 class NoCacheFileError extends Error {
   constructor(path){
     super(`The cache file ${path} does not exist!`);
     this.path = path;
   }
 }
+class NoContactsError extends Error {
+  constructor(){
+    super(`No contacts found!`);
+  }
+}
+class ContactsAccessDeniedError extends Error {
+  constructor(){
+    super(`No access to the contacts was permitted!`);
+  }
+}
 
+// File Handling
 let fm = FileManager.local();
 
 if(fm.isFileStoredIniCloud(module.filename)){
@@ -361,25 +372,27 @@ const inputText = Array.isArray(escapedText) ? `['${
 const textLength = new TextLength();
 const lightDotsLength = await textLength.computeLength(settings.textOverflowChar, settings.textSize, settings.textFontFamilies.thin)
 
-async function computeWidget(fm, settings){
-  const widget = new ListWidget();
+async function createWidget(fm, settings){
   const recomputeBirthdays = !config.runsInWidget;
   
-  const allBirthdays = recomputeBirthdays ? await updateAndGetCache(fm) : loadCache(fm);
+  let allBirthdays;
+  try {
+    allBirthdays = recomputeBirthdays ? await updateAndGetCache(fm) : loadCache(fm);
+  } catch {
+    return createErrorWidget(new ContactsAccessDeniedError(), settings);
+  }
   
   let nextContacts;
   nextContacts = computeNextBirthdays(allBirthdays, settings);
-  
   nextContacts = nextContactsAndRelativeDates(nextContacts);
   
-  await composeWidget(widget, nextContacts, settings);
-  return widget;
+  return await createContentWidget(nextContacts, settings);
 }
 
-async function composeWidget(widget, contacts, settings) {
+async function createContentWidget(contacts, settings) {
+  const widget = new ListWidget();
   
   const {
-    verticalSpacing, 
     titleSize, 
     titleSpacing, 
     textSize, 
@@ -404,13 +417,7 @@ async function composeWidget(widget, contacts, settings) {
     settings.textFontFamilies);
 
   if(contacts.length < 1){
-    renderNoContactsMsg(
-      widget, 
-      (canvasSize.y - textSize) / 2 - padding[3], 
-      textSize, 
-      textColor, 
-      settings.textFontFamilies);
-    return widget;
+    return createErrorWidget(new NoContactsError(), settings);
   }
   
   await renderNextBirthdays(
@@ -467,15 +474,6 @@ function renderTitle(widget, titleSize, title, titleColor, textFontFamilies){
     default:
       titleElement.centerAlignText();
   }
-}
-
-function renderNoContactsMsg(widget, marginTopBottom, textSize, textColor, textFontFamilies){
-  widget.addSpacer(marginTopBottom);
-  const text = widget.addText("No contacts found.");
-  text.font = new Font(textFontFamilies.regular, textSize);
-  text.textColor = textColor;
-  text.centerAlignText();
-  widget.addSpacer(marginTopBottom);
 }
 
 function getCanvasSize(paddingTop, paddingX, verticalSpacing, titleSize){
@@ -580,22 +578,68 @@ async function renderNextBirthdays(contacts, widget, canvasSize, titleSpacing, t
 
 
 // Error handling
-function setupErrorWidget(widget, error){
+function createErrorWidget(error, settings){
+  const widget = new ListWidget();
+
+  let titleSize = 26;
+  let titleSpacing = 10;
+  let verticalSpacing = 10;
+  let backgroundIsDark = true;
+  try {
+    widget.backgroundColor = new Color(settings.backgroundColor);
+    backgroundIsDark = isDark(settings.backgroundColor);
+    titleSize = getValueForWidgetType(settings.titleSize, 26);
+    verticalSpacing = getValueForWidgetType(settings.verticalTextSpacing, 0.5);
+  } catch (e) {
+    console.error("ERROR WHILE RENDERING ERROR!" + e)
+  }
+
+  const title = widget.addText("Oh snap!");
+
+  try {
+    title.font = Font.regularSystemFont(titleSize);
+    titleSpacing = titleSize * verticalSpacing;
+  } catch (e) {
+    console.error("ERROR WHILE RENDERING ERROR!" + e);
+  }
+
+  widget.addSpacer(titleSpacing);
+
   let text;
+  let isCritical = false;
   if (error instanceof NoCacheFileError){
     text = widget.addText(`🏗 There is one last thing…
-Please run this script once in the Scriptable app by clicking the „${Script.name()}“-tile.
-Thanks! 🙏`);
-  text.textColor = Color.yellow();
+    Please run this script once in the Scriptable app by clicking the „${Script.name()}“-tile.
+    Thanks! 🙏`);
+  } else if (error instanceof NoContactsError){
+    text = widget.addText(`👀 No contacts could be found…`);
+  } else if (error instanceof ContactsAccessDeniedError){
+    text = widget.addText(`😢 Couldn't read your contacts storing the names and birthdays on your device. Make sure you gave the Scriptable app permission to read your contacts (Settings > Privacy and Security > Contacts > Check "Scriptable")`);
+    isCritical = true;
   } else {
     text = widget.addText("🫣 Unexpected error: " + (error instanceof Error ? error.message : String(error)));
-  text.textColor = Color.red();
+    isCritical = true;
   }
+  
+  title.centerAlignText();
   text.centerAlignText();
+  if(isCritical) {
+    const color = backgroundIsDark ? Color.red() : Color.red();
+    title.textColor = color;
+    text.textColor = color;
+  } else {
+    const color = backgroundIsDark ? Color.yellow() : Color.orange();
+    title.textColor = color;
+    text.textColor = color;
+  }
   if(config.widgetFamily === "small"){
     text.font = Font.regularSystemFont(10);
   }
+
+  return widget;
 }
+
+
 
 
 
@@ -638,6 +682,8 @@ async function setCustomBackgroundColor(){
   }
   if(normalizedColorValue !== ""){
     applyColorToScript(normalizedColorValue);
+    
+    await presentRerunAlert();
   }
 }
 
@@ -649,7 +695,9 @@ async function setBackgroundColor(){
     return;
   }
   console.log(`Selected color: ${selectedColor}.`)
-  applyColorToScript(selectedColor)
+  applyColorToScript(selectedColor);
+  
+  await presentRerunAlert();
 }
 
 // copied from https://24ways.org/2010/calculating-color-contrast
@@ -781,6 +829,7 @@ async function setWidgetTitle(settings){
     const scriptContent = getScript();
     const scriptWithNewTitle = scriptContent.replace(/((?:const|let|var) *widgetTitle *= *[`'"])(.*)([`'"])/, `$1${trimmedTitle}$3`);
     updateScript(scriptWithNewTitle);
+    await presentRerunAlert();
   }
 }
 
@@ -811,6 +860,13 @@ function updateScript(newScript){
 
 
 // User Actions
+async function presentRerunAlert() {
+  const restartAlert = new Alert();
+  restartAlert.title = "Please click on the widget once to apply changes.";
+  restartAlert.addAction("OK");
+  await restartAlert.presentAlert();
+}
+
 async function handleUserActions(widget, settings){
   const alert = new Alert();
   alert.addAction("🎨 Choose Background Color");
@@ -846,7 +902,7 @@ try{
 log(`Running script version ${version}`);
   const start = new Date();
   
-  const widget = await computeWidget(fm, settings);
+  const widget = await createWidget(fm, settings);
 
   Script.setWidget(widget);
   setNextExecution(widget);
@@ -860,8 +916,7 @@ log(`Running script version ${version}`);
   
 } catch(e){
   console.error(e);
-  const widget = new ListWidget();
-  setupErrorWidget(widget, e);
+  const widget = createErrorWidget(e, settings);
   Script.setWidget(widget);
   setNextExecution(widget);
   if(config.runsInApp){
