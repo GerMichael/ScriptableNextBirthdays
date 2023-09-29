@@ -2,7 +2,7 @@
  * @author: Michael Gerischer
  * @github: https://github.com/GerMichael/ScriptableNextBirththdays
  */
-const version = "1.1.4";
+const version = "1.1.5";
 
 // === Script controlled variables ===
 // === DO NOT ALTER VARIABLE NAMES ===
