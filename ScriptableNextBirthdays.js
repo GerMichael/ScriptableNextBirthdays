@@ -378,7 +378,8 @@ async function createWidget(fm, settings){
   let allBirthdays;
   try {
     allBirthdays = recomputeBirthdays ? await updateAndGetCache(fm) : loadCache(fm);
-  } catch {
+  } catch (e) {
+    console.log(`Error loading contacts: ${e.message}`);
     return createErrorWidget(new ContactsAccessDeniedError(), settings);
   }
   
@@ -672,18 +673,20 @@ async function setCustomBackgroundColor(){
     inputAlert.addCancelAction("Cancel");
     result = await inputAlert.present();
     
-    normalizedColorValue = textfield.text.trim().replace(/^([^#])/, "#$1");
-    if(colorRegex.test(normalizedColorValue)){
-      isValid = true;
-      break;
+    if(result > -1) {   
+      normalizedColorValue = inputAlert.textFieldValue(0).trim().replace(/^([^#])/, "#$1");
+      if(colorRegex.test(normalizedColorValue)){
+        isValid = true;
+        break;
+      }
+      isValid = false;
+      textfield.text = normalizedColorValue;
+      if(normalizedColorValue !== ""){
+        applyColorToScript(normalizedColorValue);
+        
+        await presentRerunAlert();
+      } 
     }
-    isValid = false;
-    textfield.text = normalizedColorValue;
-  }
-  if(normalizedColorValue !== ""){
-    applyColorToScript(normalizedColorValue);
-    
-    await presentRerunAlert();
   }
 }
 
@@ -750,7 +753,7 @@ function getPalettes() {
       "main": {
         "Gold Web Golden Yellow": "#FFD60A",
         "Red Orange Color Wheel": "#FF4800",
-        "Maximum Red": "#DD1C1A",
+        "Maximum Red": "#BF0A1A",
         "Paradise Pink": "#EF476F",
         "Byzantine Purple": "#B5179E",
         "Ultramarine Blue": "#4361EE",
@@ -774,11 +777,13 @@ function getPalettes() {
     "dark": {
         "Indian Yellow": "#E09F3E",
         "Rosewood": "#540B0E",
+        "Scarlet Red": "#930000",
         "Antique Fuchsia": "#966289",
         "Cyber Grape": "#5A3B72",
         "Palatinate Purple": "#4D194D",
         "Russian Violet": "#3A015C",
         "Oxford Blue": "#14213D",
+        "Indigo Dye Blue": "#002D3F",
         "MSU Green": "#004439",
         "Kombu Green": "#283618",
         "Seal Brown": "#582F0E",
